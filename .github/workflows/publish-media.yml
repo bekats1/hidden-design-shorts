@@ -8,6 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Decode videos and publish release assets
@@ -37,3 +42,34 @@ jobs:
           else
             gh release create v1 out/* --title "Hidden Design shorts media" --notes "Public MP4s used to schedule Hidden Design shorts in Buffer."
           fi
+      - name: Publish hosted branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          work=/tmp/hosted
+          rm -rf "$work"
+          if git ls-remote --exit-code --heads origin hosted >/dev/null 2>&1; then
+            git clone --branch hosted "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$work"
+          else
+            git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$work"
+            git -C "$work" checkout --orphan hosted
+            git -C "$work" rm -rf --ignore-unmatch .
+          fi
+          rm -rf "$work"/*
+          mkdir -p "$work"
+          cp out/* "$work"/
+          git -C "$work" add -A
+          if git -C "$work" diff --cached --quiet; then
+            echo "hosted branch already up to date"
+          else
+            git -C "$work" commit -m "Publish decoded MP4s for public hosting"
+            git -C "$work" push origin hosted
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+      - id: deploy
+        uses: actions/deploy-pages@v4
