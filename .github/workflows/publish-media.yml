@@ -1,0 +1,39 @@
+name: publish-media
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode videos and publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          assemble() {
+            local dest="$1"
+            if [[ -f "media/${dest}.b64" ]]; then
+              base64 -d "media/${dest}.b64" > "out/${dest}"
+            elif compgen -G "media/${dest}.b64.*" > /dev/null; then
+              cat media/${dest}.b64.* | base64 -d > "out/${dest}"
+            else
+              echo "missing encoded file for ${dest}" >&2
+              exit 1
+            fi
+          }
+          assemble video02-short-1-music.mp4
+          assemble video02-short-2-music.mp4
+          assemble video02-short-3-music.mp4
+          assemble video01-short-3-v2-music.mp4
+          (cd out && sha256sum -c ../checksums.sha256 --strict)
+          if gh release view v1 >/dev/null 2>&1; then
+            gh release upload v1 out/* --clobber
+          else
+            gh release create v1 out/* --title "Hidden Design shorts media" --notes "Public MP4s used to schedule Hidden Design shorts in Buffer."
+          fi
