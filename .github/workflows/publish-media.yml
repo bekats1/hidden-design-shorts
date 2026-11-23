@@ -36,6 +36,8 @@ jobs:
           assemble video02-short-2-music.mp4
           assemble video02-short-3-music.mp4
           assemble video01-short-3-v2-music.mp4
+          assemble meet-dot.mp4
+          assemble box-teaser.mp4
           (cd out && sha256sum -c ../checksums.sha256 --strict)
           if gh release view v1 >/dev/null 2>&1; then
             gh release upload v1 out/* --clobber
