@@ -1,0 +1,23 @@
+name: publish-video03
+on:
+  push:
+    branches: [video03-upload]
+    paths: ['trigger/video03.txt']
+  workflow_dispatch:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode video and publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          cat media/video03/video03-final-music-v5.mp4.b64.* | base64 -d > out/video03-final-music-v5.mp4
+          ls -l out
+          echo "c13ba19871d0a69d71f345929f031327416f885efa9b272da3328c6089eef9bc  out/video03-final-music-v5.mp4" | sha256sum -c -
+          gh release upload v1 out/video03-final-music-v5.mp4 --clobber
