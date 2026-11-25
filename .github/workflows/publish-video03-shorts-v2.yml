@@ -1,0 +1,43 @@
+name: publish-video03-shorts-v2
+on:
+  push:
+    branches: [video03-shorts-upload]
+    paths: ['trigger/video03-shorts-v2.txt']
+  workflow_dispatch:
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode and verify the three Video 3 shorts
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          for n in 1 2 3; do
+            f=video03-short-$n-master-v2-1080x1920.mp4
+            cat media/video03s/$f.b64.* | base64 -d > out/$f
+          done
+          ls -l out
+          (cd out && sha256sum -c --strict ../trigger/video03-shorts-v2.sha256)
+      - name: Upload release assets to v1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload v1 out/*.mp4 --clobber
+      - name: Add files to the hosted branch (keeps existing files)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          work=/tmp/hosted
+          git clone --branch hosted "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$work"
+          cp out/*.mp4 "$work"/
+          git -C "$work" add -A
+          if git -C "$work" diff --cached --quiet; then echo "hosted already up to date"; else
+            git -C "$work" commit -m "Add Video 3 shorts v2 (question VO, iris) for public hosting"
+            git -C "$work" push origin hosted
+          fi
+          echo "hosted sha: $(git -C "$work" rev-parse HEAD)"
